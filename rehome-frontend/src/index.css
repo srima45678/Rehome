@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #F5F0E8;
+}
+
+/* Fix 1 - Hide Microsoft Edge built-in eye icon */
+input::-ms-reveal {
+  display: none !important;
+}
+
+/* Fix 2 - Hide Chrome built-in eye icon */
+input::-webkit-contacts-auto-fill-button,
+input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+}
+
+/* Fix 3 - Remove default password styling */
+input[type="password"]::-ms-clear {
+  display: none !important;
+}
