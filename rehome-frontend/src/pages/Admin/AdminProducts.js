@@ -1,24 +1,28 @@
-// AdminProducts.js
-// Admin can view all products and delete inappropriate listings
-
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import API from '../../utils/api';
 
 function AdminProducts() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
       navigate('/');
       return;
     }
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    if (status) setStatusFilter(status);
+
     fetchProducts();
-  }, []);
+    // eslint-disable-next-line
+  }, [location.search]);
 
   const fetchProducts = async () => {
     try {
@@ -46,6 +50,11 @@ function AdminProducts() {
     sofa: '🛋️', chair: '🪑', table: '🪵', bed: '🛏️',
     wardrobe: '🚪', shelf: '📚', desk: '🖥️', other: '📦'
   };
+
+  // Filter products by selected status
+  const filteredProducts = statusFilter === 'all'
+    ? products
+    : products.filter(p => p.status === statusFilter);
 
   return (
     <div className="min-h-screen bg-secondary">
@@ -80,19 +89,39 @@ function AdminProducts() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
 
+        {/* Status filter tabs */}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {[
+            { key: 'all', label: '📋 All' },
+            { key: 'available', label: '🟢 Available' },
+            { key: 'reserved', label: '🟡 Reserved' },
+            { key: 'sold', label: '🔴 Sold' }
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all
+                ${statusFilter === tab.key
+                  ? 'bg-primary text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              {tab.label} ({tab.key === 'all' ? products.length : products.filter(p => p.status === tab.key).length})
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="text-center py-12">
             <p className="text-4xl animate-bounce">📦</p>
             <p className="text-gray-500 mt-2">Loading products...</p>
           </div>
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="bg-white rounded-2xl text-center py-12 shadow-sm">
             <p className="text-5xl mb-4">📭</p>
-            <p className="text-gray-500">No products listed yet</p>
+            <p className="text-gray-500">No products found</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {products.map(product => (
+            {filteredProducts.map(product => (
               <div key={product._id}
                 className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
 
@@ -117,6 +146,8 @@ function AdminProducts() {
                     <span className={`text-xs px-2 py-1 rounded-full font-semibold flex-shrink-0
                       ${product.status === 'available'
                         ? 'bg-green-100 text-green-700'
+                        : product.status === 'reserved'
+                        ? 'bg-yellow-100 text-yellow-700'
                         : 'bg-orange-100 text-orange-700'}`}>
                       {product.status}
                     </span>

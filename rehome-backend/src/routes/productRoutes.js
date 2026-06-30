@@ -7,7 +7,8 @@ const {
   getMyProducts,
   updateProduct,
   deleteProduct,
-  toggleLike
+  toggleLike,
+  flagProduct
 } = require('../controllers/productController');
 const { protect } = require('../middleware/auth');
 const { upload } = require('../config/cloudinary');
@@ -34,5 +35,8 @@ router.delete('/:id', protect, deleteProduct);
 
 // Like/Unlike
 router.post('/:id/like', protect, toggleLike);
+
+// Flag product
+router.post('/:id/flag', protect, flagProduct);
 
 module.exports = router;

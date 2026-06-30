@@ -347,6 +347,39 @@ const toggleLike = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════
+// FLAG A PRODUCT
+// POST /api/products/:id/flag
+// ═══════════════════════════════════
+const flagProduct = async (req, res) => {
+  try {
+    const { reason, comment } = req.body;
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    // Prevent seller from flagging own product
+    if (product.seller.toString() === req.user._id.toString()) {
+      return res.status(400).json({ success: false, message: 'Cannot report your own listing' });
+    }
+
+    // Prevent duplicate flags from same user
+    const alreadyFlagged = product.flags.some(
+      f => f.user.toString() === req.user._id.toString()
+    );
+    if (alreadyFlagged) {
+      return res.status(400).json({ success: false, message: 'You already reported this listing' });
+    }
+
+    product.flags.push({ user: req.user._id, reason, comment });
+    product.isFlagged = true;
+    await product.save();
+
+    res.json({ success: true, message: 'Listing reported successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Export all functions so routes can use them
 module.exports = {
   createProduct,
@@ -355,5 +388,6 @@ module.exports = {
   getMyProducts,
   updateProduct,
   deleteProduct,
-  toggleLike
+  toggleLike,
+  flagProduct
 };

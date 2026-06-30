@@ -20,6 +20,7 @@ import ChatList from './pages/Chat/ChatList';
 import ChatRoom from './pages/Chat/ChatRoom';
 import ProfileSettings from './pages/Profile/ProfileSettings';
 import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
+import AdminFlagged from './pages/Admin/AdminFlagged';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
           <Route path="/chat/:chatId" element={<ChatRoom />} />
           <Route path="/profile/settings" element={<ProfileSettings />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/admin/flagged" element={<AdminFlagged />} />
         </Routes>
         <Footer />
       </div>

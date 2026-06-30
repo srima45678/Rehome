@@ -1,25 +1,28 @@
-// AdminUsers.js
-// Admin can view all users and ban/unban or delete them
-
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import API from '../../utils/api';
 
 function AdminUsers() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, buyer, seller, admin
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
       navigate('/');
       return;
     }
+    const params = new URLSearchParams(location.search);
+    const roleParam = params.get('role');
+    if (roleParam) setFilter(roleParam);
+
     fetchUsers();
-  }, []);
+    // eslint-disable-next-line
+  }, [location.search]);
 
   const fetchUsers = async () => {
     try {
@@ -32,17 +35,15 @@ function AdminUsers() {
     }
   };
 
-  // Ban/Unban user
   const handleToggleStatus = async (userId) => {
     try {
       await API.put(`/admin/users/${userId}/toggle-status`);
-      fetchUsers(); // refresh list
+      fetchUsers();
     } catch (error) {
       alert('Failed to update user status');
     }
   };
 
-  // Delete user permanently
   const handleDelete = async (userId, userName) => {
     if (!window.confirm(`Delete ${userName}'s account permanently?`)) return;
     try {
@@ -54,7 +55,6 @@ function AdminUsers() {
     }
   };
 
-  // Filter users based on selected tab
   const filteredUsers = filter === 'all'
     ? users
     : users.filter(u => u.role === filter);
@@ -143,7 +143,6 @@ function AdminUsers() {
                   {filteredUsers.map(u => (
                     <tr key={u._id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
 
-                      {/* Name with avatar */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -153,10 +152,8 @@ function AdminUsers() {
                         </div>
                       </td>
 
-                      {/* Email */}
                       <td className="px-6 py-4 text-gray-600 text-sm">{u.email}</td>
 
-                      {/* Role badge */}
                       <td className="px-6 py-4">
                         <span className={`text-xs px-2 py-1 rounded-full font-semibold
                           ${u.role === 'seller' ? 'bg-purple-100 text-purple-700' :
@@ -166,10 +163,8 @@ function AdminUsers() {
                         </span>
                       </td>
 
-                      {/* City */}
                       <td className="px-6 py-4 text-gray-600 text-sm">{u.city}</td>
 
-                      {/* Status */}
                       <td className="px-6 py-4">
                         <span className={`text-xs px-2 py-1 rounded-full font-semibold
                           ${u.isActive
@@ -179,12 +174,10 @@ function AdminUsers() {
                         </span>
                       </td>
 
-                      {/* Joined date */}
                       <td className="px-6 py-4 text-gray-400 text-sm">
                         {new Date(u.createdAt).toLocaleDateString()}
                       </td>
 
-                      {/* Actions */}
                       <td className="px-6 py-4">
                         {u.role !== 'admin' && (
                           <div className="flex gap-2">

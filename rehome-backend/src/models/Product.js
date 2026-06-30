@@ -95,7 +95,19 @@ const productSchema = new mongoose.Schema(
     isFeatured: {
       type: Boolean,
       default: false
-    }
+    },
+
+    // Add this inside productSchema, before the closing brace of the schema fields
+flags: [
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reason: { type: String, enum: ['fake', 'misleading', 'wrong_price', 'inappropriate', 'other'] },
+    comment: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
+  }
+],
+isFlagged: { type: Boolean, default: false },
+flagResolved: { type: Boolean, default: false }
   },
   {
     timestamps: true  // adds createdAt and updatedAt

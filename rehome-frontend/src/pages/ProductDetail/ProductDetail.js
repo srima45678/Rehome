@@ -22,6 +22,11 @@ function ProductDetail() {
   // selectedImage = which image is currently shown big
   const [selectedImage, setSelectedImage] = useState(0);
 
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportComment, setReportComment] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+
   // useEffect runs when page loads or ID changes
   useEffect(() => {
     fetchProduct();
@@ -400,6 +405,69 @@ function ProductDetail() {
                           : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                       {isWishlisted ? '❤️ In Wishlist' : '🤍 Add to Wishlist'}
                     </button>
+
+                    {/* Report Listing */}
+{!reportSubmitted ? (
+  <div>
+    {showReportForm ? (
+      <div className="border-2 border-red-200 rounded-xl p-4 bg-red-50">
+        <p className="font-bold text-red-700 mb-3">🚩 Report this listing</p>
+        <select
+          value={reportReason}
+          onChange={e => setReportReason(e.target.value)}
+          className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm mb-2 bg-white">
+          <option value="">Select a reason...</option>
+          <option value="fake">Fake listing</option>
+          <option value="misleading">Misleading photos/description</option>
+          <option value="wrong_price">Wrong price</option>
+          <option value="inappropriate">Inappropriate content</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea
+          value={reportComment}
+          onChange={e => setReportComment(e.target.value)}
+          placeholder="Additional details (optional)"
+          className="w-full border border-red-200 rounded-lg px-3 py-2 text-sm mb-3 bg-white resize-none"
+          rows={2}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowReportForm(false)}
+            className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm">
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              if (!reportReason) return alert('Please select a reason');
+              try {
+                await API.post(`/products/${product._id}/flag`, {
+                  reason: reportReason,
+                  comment: reportComment
+                });
+                setReportSubmitted(true);
+                setShowReportForm(false);
+              } catch (err) {
+                alert(err.response?.data?.message || 'Failed to report');
+              }
+            }}
+            className="flex-1 bg-red-500 text-white py-2 rounded-lg text-sm font-bold">
+            Submit Report
+          </button>
+        </div>
+      </div>
+    ) : (
+      <button
+        onClick={() => setShowReportForm(true)}
+        className="w-full border border-red-200 text-red-500 text-sm py-2 rounded-xl hover:bg-red-50 transition-all">
+        🚩 Report this listing
+      </button>
+    )}
+  </div>
+) : (
+  <p className="text-center text-green-600 text-sm font-medium py-2">
+    ✅ Report submitted — our team will review this listing
+  </p>
+)}
 
                   </div>
                 )}

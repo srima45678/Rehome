@@ -6,7 +6,10 @@ const {
   deleteUser,
   getAllProducts,
   deleteProductAdmin,
-  toggleUserStatus
+  toggleUserStatus,
+  getAnalytics,
+  getFlaggedProducts,
+  resolveFlag
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -22,5 +25,8 @@ router.delete('/users/:id', deleteUser);
 router.put('/users/:id/toggle-status', toggleUserStatus);
 router.get('/products', getAllProducts);
 router.delete('/products/:id', deleteProductAdmin);
+router.get('/analytics', getAnalytics);
+router.get('/flagged', getFlaggedProducts);
+router.put('/flagged/:id/resolve', resolveFlag);
 
 module.exports = router;
