@@ -348,6 +348,11 @@ function SellerDashboard() {
                              product.status === 'reserved' ? '🟡 Reserved' :
                              '🔴 Sold'}
                           </span>
+                          {product.isFlagged && (
+                             <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full font-semibold">
+                                ⚠️ Under Review
+                             </span>
+                            )}
                           <span className="text-gray-400 text-xs">
                             📍 {product.city}
                           </span>

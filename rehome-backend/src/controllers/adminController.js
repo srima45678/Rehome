@@ -4,6 +4,7 @@
 
 const User = require('../models/User');
 const Product = require('../models/Product');
+const sendEmail = require('../utils/sendEmail');
 
 // ═══════════════════════════════════
 // GET DASHBOARD STATS
@@ -18,6 +19,7 @@ const getStats = async (req, res) => {
     const totalProducts = await Product.countDocuments();
     const availableProducts = await Product.countDocuments({ status: 'available' });
     const soldProducts = await Product.countDocuments({ status: 'sold' });
+    
 
     const flaggedProducts = await Product.countDocuments({
       isFlagged: true
@@ -260,20 +262,61 @@ const getFlaggedProducts = async (req, res) => {
 const resolveFlag = async (req, res) => {
   try {
     const { action } = req.body; // 'keep' or 'remove'
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate('seller', 'fullName email');
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
 
     if (action === 'remove') {
+      const sellerEmail = product.seller?.email;
+      const sellerName = product.seller?.fullName;
+      const productTitle = product.title;
+
       await product.deleteOne();
-      return res.json({ success: true, message: 'Product removed by admin' });
+
+      // Notify seller — status only, no reporter details
+      if (sellerEmail) {
+        await sendEmail({
+          to: sellerEmail,
+          subject: 'Your ReHome listing was removed',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto;">
+              <h2 style="color: #8B4513;">Hi ${sellerName},</h2>
+              <p>Your listing <strong>"${productTitle}"</strong> was reviewed by our team and has been
+              <strong style="color: #dc2626;">removed</strong> for violating ReHome's listing guidelines.</p>
+              <p>If you believe this was a mistake, please contact our support team.</p>
+              <p style="margin-top: 20px; color: #666; font-size: 13px;">— ReHome Nepal Team</p>
+            </div>
+          `
+        });
+      }
+
+      return res.json({ success: true, message: 'Product removed and seller notified' });
+
     } else {
       product.isFlagged = false;
       product.flagResolved = true;
       product.flags = [];
       await product.save();
-      return res.json({ success: true, message: 'Listing approved — flags cleared' });
+      
+      // Notify seller their listing passed review
+      if (product.seller?.email) {
+        await sendEmail({
+          to: product.seller.email,
+          subject: 'Your ReHome listing review is complete',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto;">
+              <h2 style="color: #8B4513;">Hi ${product.seller.fullName},</h2>
+              <p>Your listing <strong>"${product.title}"</strong> was reported by a user, but after review,
+              our team found <strong style="color: #16a34a;">no issues</strong>. Your listing remains active.</p>
+              <p style="margin-top: 20px; color: #666; font-size: 13px;">— ReHome Nepal Team</p>
+            </div>
+          `
+        });
+      }
+
+      return res.json({ success: true, message: 'Listing approved — seller notified' });
     }
   } catch (error) {
+    console.error('RESOLVE FLAG ERROR:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
