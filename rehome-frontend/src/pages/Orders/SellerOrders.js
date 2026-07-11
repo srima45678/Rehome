@@ -32,13 +32,31 @@ function SellerOrders() {
     }
   };
 
-  // Seller updates order status
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
       await API.put(`/orders/${orderId}/status`, { status: newStatus });
       fetchOrders();
     } catch (error) {
       alert('Failed to update order status');
+    }
+  };
+  
+  // Seller updates order status
+  const handleDownloadReceipt = async (orderId) => {
+    try {
+      const res = await API.get(`/orders/${orderId}/receipt`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ReHome-Receipt-${orderId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Failed to download receipt');
     }
   };
 
@@ -166,10 +184,17 @@ function SellerOrders() {
                 )}
 
                 {order.status === 'delivered' && (
-                  <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                    <p className="text-green-700 font-semibold text-sm">
-                      ✅ Order completed successfully!
-                    </p>
+                  <div className="mt-4">
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center mb-3">
+                      <p className="text-green-700 font-semibold text-sm">
+                        ✅ Order completed successfully!
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleDownloadReceipt(order._id)}
+                      className="w-full border-2 border-green-300 text-green-700 font-semibold py-2 rounded-xl hover:bg-green-50 transition-colors text-sm">
+                      🧾 Download Receipt
+                    </button>
                   </div>
                 )}
 

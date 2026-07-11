@@ -21,7 +21,8 @@ const createProduct = async (req, res) => {
       category,
       condition,
       city,
-      address
+      address,
+      allowOffers
     } = req.body;
 
     // Validate required fields
@@ -50,7 +51,8 @@ const createProduct = async (req, res) => {
       city,
       address: address || '',
       seller: req.user.id,  // logged in user's ID
-      images               // array of Cloudinary image URLs
+      images,               // array of Cloudinary image URLs
+      allowOffers: allowOffers !== undefined ? allowOffers : true // FormData sends strings, not booleans
     });
 
     // Send success response to frontend
@@ -143,7 +145,7 @@ const getProduct = async (req, res) => {
     // req.params.id = the ID in the URL
     // Example: /api/products/6a1fc841de... → id = 6a1fc841de...
     const product = await Product.findById(req.params.id)
-      .populate('seller', 'fullName city phone profileImage');
+      .populate('seller', 'fullName city phone email profileImage');
 
     // If product doesn't exist
     if (!product) {
@@ -152,7 +154,6 @@ const getProduct = async (req, res) => {
         message: 'Product not found'
       });
     }
-
     // Increment view count every time someone opens product
     product.views += 1;
     await product.save();

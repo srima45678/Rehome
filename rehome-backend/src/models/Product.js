@@ -107,7 +107,8 @@ flags: [
   }
 ],
 isFlagged: { type: Boolean, default: false },
-flagResolved: { type: Boolean, default: false }
+flagResolved: { type: Boolean, default: false },
+allowOffers: { type: Boolean, default: true }
   },
   {
     timestamps: true  // adds createdAt and updatedAt

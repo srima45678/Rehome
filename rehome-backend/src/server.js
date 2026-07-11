@@ -12,7 +12,9 @@ const wishlistRoutes = require('./routes/wishlistRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const userRoutes = require('./routes/userRoutes');
+const offerRoutes = require('./routes/offerRoutes');
 const { saveMessage } = require('./controllers/chatController');
+
 
 const app = express();
 const server = http.createServer(app);
@@ -37,6 +39,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/offers', offerRoutes);
 
 app.get('/api/test', (req, res) => {
   res.json({ success: true, message: 'ReHome Backend is running! 🚀' });

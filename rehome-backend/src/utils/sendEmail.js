@@ -1,12 +1,8 @@
 // sendEmail.js
-// Sends emails using Gmail/Nodemailer
-// Used for OTP verification
-
 const nodemailer = require('nodemailer');
 
-const sendEmail = async ({ to, subject, html }) => {
+const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    // Create transporter using Gmail
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -15,12 +11,12 @@ const sendEmail = async ({ to, subject, html }) => {
       }
     });
 
-    // Send email
     const info = await transporter.sendMail({
       from: `"ReHome Nepal" <${process.env.EMAIL_USER}>`,
       to,
       subject,
-      html
+      html,
+      attachments: attachments || []
     });
 
     console.log('Email sent:', info.messageId);

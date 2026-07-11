@@ -4,6 +4,7 @@
 
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Offer = require('../models/Offer');
 const sendEmail = require('../utils/sendEmail');
 
 // ═══════════════════════════════════
@@ -321,6 +322,52 @@ const resolveFlag = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════
+// GET ALL OFFERS (admin view — read only)
+// GET /api/admin/offers
+// ═══════════════════════════════════
+const getAllOffers = async (req, res) => {
+  try {
+    const offers = await Offer.find()
+      .populate('product', 'title price images status')
+      .populate('buyer', 'fullName email city')
+      .populate('seller', 'fullName email city')
+      .sort({ createdAt: -1 });
+
+    // Simple summary stats for the top of the page
+    const totalOffers = offers.length;
+    const accepted = offers.filter(o => o.status === 'accepted');
+    const pending = offers.filter(o => o.status === 'pending' || o.status === 'countered');
+    const rejected = offers.filter(o => o.status === 'rejected');
+
+    const avgDiscountPercent = accepted.length > 0
+      ? Math.round(
+          accepted.reduce((sum, o) => {
+            const original = o.product?.price || 0;
+            if (!original) return sum;
+            return sum + ((original - o.offerPrice) / original) * 100;
+          }, 0) / accepted.length
+        )
+      : 0;
+
+    res.json({
+      success: true,
+      count: totalOffers,
+      stats: {
+        total: totalOffers,
+        accepted: accepted.length,
+        pending: pending.length,
+        rejected: rejected.length,
+        avgDiscountPercent
+      },
+      offers
+    });
+  } catch (error) {
+    console.error('GET ALL OFFERS ERROR:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getStats,
   getAllUsers,
@@ -328,7 +375,8 @@ module.exports = {
   getAllProducts,
   deleteProductAdmin,
   toggleUserStatus,
-  getAnalytics,  // add this
+  getAnalytics,
   getFlaggedProducts,
-  resolveFlag
+  resolveFlag,
+  getAllOffers
 };

@@ -40,6 +40,24 @@ function MyOrders() {
       alert(error.response?.data?.message || 'Failed to cancel order');
     }
   };
+  
+  const handleDownloadReceipt = async (orderId) => {
+    try {
+      const res = await API.get(`/orders/${orderId}/receipt`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ReHome-Receipt-${orderId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Failed to download receipt');
+    }
+  };
 
   // Order tracking steps
   const trackingSteps = ['pending', 'confirmed', 'shipped', 'delivered'];
@@ -291,6 +309,15 @@ function MyOrders() {
                       onClick={() => handleCancel(order._id)}
                       className="flex-1 border-2 border-red-200 text-red-600 font-semibold py-2 rounded-xl hover:bg-red-50 transition-colors text-sm">
                       ❌ Cancel Order
+                    </button>
+                  )}
+
+                  {/* Download receipt — only after delivery */}
+                  {order.status === 'delivered' && (
+                    <button
+                      onClick={() => handleDownloadReceipt(order._id)}
+                      className="flex-1 border-2 border-green-300 text-green-700 font-semibold py-2 rounded-xl hover:bg-green-50 transition-colors text-sm">
+                      🧾 Download Receipt
                     </button>
                   )}
                 </div>

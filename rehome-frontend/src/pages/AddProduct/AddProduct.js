@@ -14,7 +14,8 @@ function AddProduct() {
     category: '',
     condition: '',
     city: '',
-    address: ''
+    address: '',
+    allowOffers: true
   });
 
   const [images, setImages] = useState([]);
@@ -61,6 +62,7 @@ function AddProduct() {
       data.append('condition', formData.condition);
       data.append('city', formData.city);
       data.append('address', formData.address);
+      data.append('allowOffers', formData.allowOffers);
       images.forEach(image => {
         data.append('images', image);
       });
@@ -303,7 +305,24 @@ function AddProduct() {
                 {formData.description.length} characters
               </p>
             </div>
-
+             
+             {/* Allow Offers Toggle */}
+            <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
+              <input
+                type="checkbox"
+                id="allowOffers"
+                checked={formData.allowOffers}
+                onChange={e => setFormData({ ...formData, allowOffers: e.target.checked })}
+                className="w-5 h-5 accent-green-600"
+              />
+              <label htmlFor="allowOffers" className="cursor-pointer">
+                <p className="font-semibold text-green-800">💰 Allow buyers to make offers</p>
+                <p className="text-green-600 text-xs mt-0.5">
+                  If unchecked, buyers can only Buy Now at your listed price
+                </p>
+              </label>
+            </div>
+            
             {/* Image Upload */}
             <div>
               <label className="block text-gray-700 font-semibold mb-2">

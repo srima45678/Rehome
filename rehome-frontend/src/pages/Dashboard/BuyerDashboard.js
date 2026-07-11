@@ -12,7 +12,8 @@ function BuyerDashboard() {
     totalOrders: 0,
     pendingOrders: 0,
     deliveredOrders: 0,
-    totalSpent: 0
+    totalSpent: 0,
+    offerNeedingResponse: 0
   });
 
   useEffect(() => {
@@ -22,13 +23,15 @@ function BuyerDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [wishlistRes, ordersRes] = await Promise.all([
+      const [wishlistRes, ordersRes, offersRes] = await Promise.all([
         API.get('/wishlist'),
-        API.get('/orders/my-orders')
+        API.get('/orders/my-orders'),
+        API.get('/offers/my-offers')
       ]);
 
       const myWishlist = wishlistRes.data.wishlist;
       const myOrders = ordersRes.data.orders;
+      const myOffers = offersRes.data.offers;
 
       setWishlist(myWishlist);
       setOrders(myOrders);
@@ -43,7 +46,8 @@ function BuyerDashboard() {
           ['pending', 'confirmed', 'shipped'].includes(o.status)
         ).length,
         deliveredOrders: deliveredOrders.length,
-        totalSpent
+        totalSpent,
+        offersNeedingResponse: myOffers.filter(o => o.status === 'countered').length
       });
     } catch (error) {
       console.error('Error:', error);
@@ -182,7 +186,7 @@ function BuyerDashboard() {
             </div>
 
             {/* ── QUICK ACTIONS ── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
 
               <Link to="/products"
                 className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all text-center group border-2 border-transparent hover:border-primary">
@@ -220,6 +224,18 @@ function BuyerDashboard() {
                 <p className="text-4xl mb-2 group-hover:scale-110 transition-transform">💬</p>
                 <h3 className="font-bold text-gray-800 text-sm">Chats</h3>
                 <p className="text-gray-400 text-xs mt-1">Talk to sellers</p>
+              </Link>
+
+              <Link to="/my-offers"
+                className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all text-center group border-2 border-transparent hover:border-green-400 relative">
+                <p className="text-4xl mb-2 group-hover:scale-110 transition-transform">💰</p>
+                <h3 className="font-bold text-gray-800 text-sm">My Offers</h3>
+                <p className="text-gray-400 text-xs mt-1">Negotiations</p>
+                {stats.offersNeedingResponse > 0 && (
+                  <span className="absolute top-3 right-3 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    {stats.offersNeedingResponse}
+                  </span>
+                )}
               </Link>
 
             </div>

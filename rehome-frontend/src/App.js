@@ -21,6 +21,10 @@ import ChatRoom from './pages/Chat/ChatRoom';
 import ProfileSettings from './pages/Profile/ProfileSettings';
 import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
 import AdminFlagged from './pages/Admin/AdminFlagged';
+import MyOffers from './pages/Offers/MyOffers';
+import SellerOfferManager from './pages/Offers/SellerOfferManager';
+import AdminOffers from './pages/Admin/AdminOffers';
+import EditProduct from './pages/EditProduct/EditProduct';
 
 function App() {
   return (
@@ -48,6 +52,10 @@ function App() {
           <Route path="/profile/settings" element={<ProfileSettings />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin/flagged" element={<AdminFlagged />} />
+          <Route path="/my-offers" element={<MyOffers />} />
+          <Route path="/seller/offers" element={<SellerOfferManager />} />
+          <Route path="/admin/offers" element={<AdminOffers />} />
+          <Route path="/edit-product/:id" element={<EditProduct />} />
         </Routes>
         <Footer />
       </div>

@@ -15,7 +15,8 @@ function SellerDashboard() {
     reserved: 0,
     totalEarnings: 0,
     pendingOrders: 0,
-    totalOrders: 0
+    totalOrders: 0,
+    pendingOffers: 0
   });
 
   useEffect(() => {
@@ -51,6 +52,44 @@ function SellerDashboard() {
         pendingOrders: myOrders.filter(o => o.status === 'pending').length,
         totalOrders: myOrders.length
       });
+      
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch products, orders, and offers simultaneously
+      const [productsRes, ordersRes, offersRes] = await Promise.all([
+        API.get('/products/seller/my-products'),
+        API.get('/orders/seller-orders'),
+        API.get('/offers/incoming')
+      ]);
+
+      const myProducts = productsRes.data.products;
+      const myOrders = ordersRes.data.orders;
+      const myOffers = offersRes.data.offers;
+
+      setProducts(myProducts);
+      setOrders(myOrders);
+
+      // Calculate all stats dynamically
+      const deliveredOrders = myOrders.filter(o => o.status === 'delivered');
+      const totalEarnings = deliveredOrders.reduce((sum, o) => sum + o.price, 0);
+
+      setStats({
+        totalProducts: myProducts.length,
+        totalViews: myProducts.reduce((sum, p) => sum + p.views, 0),
+        available: myProducts.filter(p => p.status === 'available').length,
+        sold: myProducts.filter(p => p.status === 'sold').length,
+        reserved: myProducts.filter(p => p.status === 'reserved').length,
+        totalEarnings,
+        pendingOrders: myOrders.filter(o => o.status === 'pending').length,
+        totalOrders: myOrders.length,
+        pendingOffers: myOffers.filter(o => o.status === 'pending').length
+      });
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -161,6 +200,14 @@ function SellerDashboard() {
               <Link to="/sell"
                 className="bg-yellow-400 hover:bg-yellow-300 text-gray-800 font-bold px-4 py-2.5 rounded-xl transition-colors text-sm">
                 + Add Listing
+              </Link>
+              <Link to="/seller/offers" className="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm relative">
+              💰 Offers
+               {stats.pendingOffers > 0 && (
+                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                   {stats.pendingOffers}
+                 </span>
+               )}
               </Link>
             </div>
           </div>
@@ -364,6 +411,10 @@ function SellerDashboard() {
                         <Link to={`/products/${product._id}`}
                           className="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-xs hover:bg-blue-100 transition-colors font-semibold">
                           👁️ View
+                        </Link>
+                        <Link to={`/edit-product/${product._id}`}
+                          className="bg-yellow-50 text-yellow-700 px-3 py-2 rounded-lg text-xs hover:bg-yellow-100 transition-colors font-semibold">
+                          ✏️ Edit
                         </Link>
                         <button
                           onClick={() => handleDelete(product._id)}

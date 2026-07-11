@@ -2,11 +2,14 @@
 // Buyer fills delivery details and places order
 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import API from '../../utils/api';
 
 function Checkout() {
   const { productId } = useParams();
+  const [searchParams] = useSearchParams();
+  const offerPriceParam = searchParams.get('offerPrice');
+  const finalPrice = offerPriceParam ? Number(offerPriceParam) : null; // null means "use normal price"
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
 
@@ -14,6 +17,7 @@ function Checkout() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const displayPrice = finalPrice ?? product?.price ?? 0;
 
   const [formData, setFormData] = useState({
     deliveryAddress: '',
@@ -52,19 +56,20 @@ function Checkout() {
     setError('');
 
     // Validate phone number
-  if (formData.contactPhone.length !== 10) {
-    setError('Please enter a valid 10-digit phone number');
-    setSubmitting(false);
-    return;
-  }
-  
+    if (formData.contactPhone.length !== 10) {
+      setError('Please enter a valid 10-digit phone number');
+      setSubmitting(false);
+      return;
+    }
+
     try {
       await API.post('/orders', {
         productId,
         deliveryAddress: formData.deliveryAddress,
         deliveryCity: formData.deliveryCity,
         contactPhone: formData.contactPhone,
-        paymentMethod: formData.paymentMethod
+        paymentMethod: formData.paymentMethod,
+        offerPrice: finalPrice
       });
 
       alert('🎉 Order placed successfully!');
@@ -138,7 +143,7 @@ function Checkout() {
           🛒 Checkout
         </h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
           {/* LEFT — Delivery Form */}
           <div className="lg:col-span-2">
@@ -191,11 +196,11 @@ function Checkout() {
                     name="contactPhone"
                     value={formData.contactPhone}
                     onChange={(e) => {
-      // Only allow digits, remove any other characters
-      const numbersOnly = e.target.value.replace(/[^0-9]/g, '');
-      setFormData({ ...formData, contactPhone: numbersOnly });
-      setError('');
-    }}
+                      // Only allow digits, remove any other characters
+                      const numbersOnly = e.target.value.replace(/[^0-9]/g, '');
+                      setFormData({ ...formData, contactPhone: numbersOnly });
+                      setError('');
+                    }}
                     placeholder="98XXXXXXXX"
                     required
                     maxLength={10}
@@ -204,10 +209,10 @@ function Checkout() {
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-2 focus:ring-orange-100 transition-all"
                   />
                   {formData.contactPhone && formData.contactPhone.length !== 10 && (
-    <p className="text-red-500 text-xs mt-1">
-      Phone number must be 10 digits
-    </p>
-  )}
+                    <p className="text-red-500 text-xs mt-1">
+                      Phone number must be 10 digits
+                    </p>
+                  )}
                 </div>
 
                 {/* Payment Method */}
@@ -305,8 +310,25 @@ function Checkout() {
               <div className="space-y-2 mt-4 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Item Price</span>
-                  <span>Rs. {Number(product.price).toLocaleString()}</span>
+                  <span>
+                    {finalPrice ? (
+                      <>
+                        <span className="line-through text-gray-400 mr-2">
+                          Rs. {Number(product.price).toLocaleString()}
+                        </span>
+                        Rs. {Number(finalPrice).toLocaleString()}
+                      </>
+                    ) : (
+                      `Rs. ${Number(product.price).toLocaleString()}`
+                    )}
+                  </span>
                 </div>
+                {finalPrice && (
+                  <div className="flex justify-between text-green-600 text-xs font-semibold">
+                    <span>✅ Accepted offer price applied</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-gray-600">
                   <span>Delivery Fee</span>
                   <span className="text-green-600 font-semibold">FREE</span>
@@ -318,7 +340,7 @@ function Checkout() {
               <div className="flex justify-between items-center">
                 <span className="font-bold text-gray-800">Total</span>
                 <span className="font-bold text-primary text-xl">
-                  Rs. {Number(product.price).toLocaleString()}
+                  Rs. {Number(displayPrice).toLocaleString()}
                 </span>
               </div>
 

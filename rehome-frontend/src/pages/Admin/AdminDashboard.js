@@ -84,6 +84,9 @@ function AdminDashboard() {
     </span>
   )}
 </Link>
+            <Link to="/admin/offers" className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded-lg text-sm">
+            💰 Offers
+            </Link>
           </div>
         </div>
       </div>

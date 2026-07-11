@@ -26,6 +26,11 @@ function ProductDetail() {
   const [reportReason, setReportReason] = useState('');
   const [reportComment, setReportComment] = useState('');
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [offerPrice, setOfferPrice] = useState('');
+  const [offerMessage, setOfferMessage] = useState('');
+  const [offerSubmitted, setOfferSubmitted] = useState(false);
+  const [myOffer, setMyOffer] = useState(null);
 
   // useEffect runs when page loads or ID changes
   useEffect(() => {
@@ -52,6 +57,17 @@ function ProductDetail() {
         } catch (err) {
           console.log('Could not check wishlist');
         }
+        if (user) {
+        try {
+          const offersRes = await API.get('/offers/my-offers');
+          const matchingOffer = offersRes.data.offers
+            .filter(o => o.product?._id === response.data.product._id)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+          setMyOffer(matchingOffer || null);
+        } catch (err) {
+          console.log('Could not check existing offers');
+        }
+      }
       }
 
     } catch (error) {
@@ -185,13 +201,6 @@ function ProductDetail() {
                 <p className="text-gray-500 text-xs mt-1">Views</p>
               </div>
 
-              {/* <div className="bg-white rounded-xl p-4 text-center shadow-sm">
-                <p className="text-2xl font-bold text-red-500">
-                  {product.likes?.length || 0}
-                </p>
-                <p className="text-gray-500 text-xs mt-1">Likes</p>
-              </div> */}
-
               <div className="bg-white rounded-xl p-4 text-center shadow-sm">
                 <p className="text-2xl font-bold text-green-600">
                   {product.status === 'available' ? '✅' : '❌'}
@@ -272,7 +281,7 @@ function ProductDetail() {
                 <h3 className="font-bold text-gray-800 mb-2 text-lg">
                   📝 Description
                 </h3>
-                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line break-words">
                   {product.description}
                 </p>
               </div>
@@ -304,13 +313,28 @@ function ProductDetail() {
                     ⚠️ Seller account no longer available
                   </p>
                 )}
+
+                {/* Admin-only: full seller contact info */}
+                {user?.role === 'admin' && product.seller && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 text-sm space-y-1">
+                    <p className="text-gray-700">
+                      <span className="font-semibold">📧 Email:</span>{' '}
+                      {product.seller.email || 'N/A'}
+                    </p>
+                    <p className="text-gray-700">
+                      <span className="font-semibold">📱 Phone:</span>{' '}
+                      {product.seller.phone || 'N/A'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* ── ACTION BUTTONS ──
                   Shows different buttons based on who is viewing:
                   1. Not logged in → show login prompt
-                  2. Own product → show delete/dashboard
-                  3. Other's product → show buy/chat/wishlist
+                  2. Admin → show moderation view
+                  3. Own product → show delete/dashboard
+                  4. Other's product → show buy/chat/wishlist
               */}
               <div className="mt-6 space-y-3">
 
@@ -326,9 +350,41 @@ function ProductDetail() {
                     </Link>
                   </div>
 
+                ) : user.role === 'admin' ? (
+
+                  /* CASE 2 — Admin viewing (moderation view) */
+                  <div>
+                    <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-3 text-center">
+                      <p className="text-purple-700 text-sm font-medium">
+                        🛡️ Admin View — moderation mode
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('Remove this listing as admin? This cannot be undone.')) {
+                            try {
+                              await API.delete(`/admin/products/${product._id}`);
+                              alert('✅ Listing removed by admin');
+                              navigate('/admin/dashboard');
+                            } catch (err) {
+                              alert(err.response?.data?.message || 'Failed to remove listing');
+                            }
+                          }
+                        }}
+                        className="flex-1 border-2 border-red-300 text-red-600 font-bold py-3 rounded-xl hover:bg-red-50 transition-all">
+                        🗑️ Remove Listing
+                      </button>
+                      <Link to="/admin/dashboard"
+                        className="flex-1 bg-primary text-white font-bold py-3 rounded-xl text-center hover:bg-accent transition-all">
+                        🛡️ Admin Dashboard
+                      </Link>
+                    </div>
+                  </div>
+
                 ) : product.seller?._id === user.id ? (
 
-                  /* CASE 2 — This is seller's own product */
+                  /* CASE 3 — This is seller's own product */
                   <div>
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3 text-center">
                       <p className="text-blue-600 text-sm font-medium">
@@ -360,7 +416,7 @@ function ProductDetail() {
 
                 ) : (
 
-                  /* CASE 3 — Another user viewing */
+                  /* CASE 4 — Another user viewing (buyer) */
                   <div className="space-y-3">
 
                     {/* Buy Now button */}
@@ -373,21 +429,137 @@ function ProductDetail() {
                         : '❌ Already Sold'}
                     </button>
 
-{/* Chat with seller */}
-<button
-  onClick={async () => {
-    try {
-      const response = await API.post('/chat/room', {
-        productId: product._id
-      });
-      navigate(`/chat/${response.data.chat._id}`);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Could not open chat');
-    }
-  }}
-  className="w-full border-2 border-primary text-primary font-bold py-3 rounded-xl hover:bg-orange-50 transition-all">
-  💬 Chat with Seller
-</button>
+                   {/* Chat with seller */}
+                   <button
+                   onClick={async () => {
+                   try {
+                     const response = await API.post('/chat/room', {
+                     productId: product._id
+                 });
+                 navigate(`/chat/${response.data.chat._id}`);
+                 } catch (err) {
+                  alert(err.response?.data?.message || 'Could not open chat');
+                 }
+                 }}
+                  className="w-full border-2 border-primary text-primary font-bold py-3 rounded-xl hover:bg-orange-50 transition-all">
+                 💬 Chat with Seller
+                 </button>
+
+                    
+                    {/* Offer Section */}
+           {product.status === 'available' && product.seller && product.allowOffers !== false && (
+  <>
+    {!myOffer && !showOfferForm && !offerSubmitted && (
+      <button
+        onClick={() => setShowOfferForm(true)}
+        className="w-full border-2 border-green-400 text-green-700 font-bold py-3 rounded-xl hover:bg-green-50 transition-all">
+        💰 Make an Offer
+      </button>
+    )}
+
+    {!myOffer && showOfferForm && !offerSubmitted && (
+      <div className="border-2 border-green-200 rounded-xl p-4 bg-green-50">
+        <p className="font-bold text-green-800 mb-1">💰 Make an Offer</p>
+        <p className="text-gray-500 text-xs mb-3">
+          Asking price: Rs. {Number(product.price).toLocaleString()}
+        </p>
+        <input
+          type="number"
+          value={offerPrice}
+          onChange={e => setOfferPrice(e.target.value)}
+          placeholder="Your offer price (Rs.)"
+          className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm mb-2 bg-white"
+        />
+        <textarea
+          value={offerMessage}
+          onChange={e => setOfferMessage(e.target.value)}
+          placeholder="Add a message to the seller (optional)"
+          className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm mb-3 bg-white resize-none"
+          rows={2}
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowOfferForm(false)}
+            className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm">
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              if (!offerPrice || Number(offerPrice) <= 0) return alert('Enter a valid offer price');
+              if (Number(offerPrice) >= product.price) return alert('Offer must be less than asking price');
+              try {
+                const res = await API.post('/offers', {
+                  productId: product._id,
+                  offerPrice: Number(offerPrice),
+                  message: offerMessage
+                });
+                setMyOffer(res.data.offer);
+                setOfferSubmitted(true);
+                setShowOfferForm(false);
+              } catch (err) {
+                alert(err.response?.data?.message || 'Failed to send offer');
+              }
+            }}
+            className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-green-700">
+            Send Offer
+          </button>
+        </div>
+      </div>
+    )}
+
+    {myOffer?.status === 'pending' && (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
+        <p className="text-yellow-700 font-bold">
+          ⏳ Offer sent: Rs. {Number(myOffer.offerPrice).toLocaleString()}
+        </p>
+        <p className="text-yellow-600 text-sm mt-1">Waiting for seller's response</p>
+      </div>
+    )}
+
+    {myOffer?.status === 'countered' && (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <p className="text-blue-700 font-bold">
+          🔄 Seller countered: Rs. {Number(myOffer.counterPrice).toLocaleString()}
+        </p>
+        {myOffer.sellerMessage && (
+          <p className="text-blue-600 text-xs mt-1">"{myOffer.sellerMessage}"</p>
+        )}
+        <button
+          onClick={async () => {
+            if (!window.confirm('Accept this counter offer?')) return;
+            try {
+              await API.put(`/offers/${myOffer._id}/accept-counter`);
+              setMyOffer({ ...myOffer, status: 'accepted' });
+            } catch (err) {
+              alert(err.response?.data?.message || 'Failed to accept');
+            }
+          }}
+          className="w-full mt-3 bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-700 text-sm">
+          ✅ Accept Rs. {Number(myOffer.counterPrice).toLocaleString()}
+        </button>
+      </div>
+    )}
+
+    {myOffer?.status === 'accepted' && (
+      <button
+        onClick={() => navigate(`/checkout/${product._id}?offerPrice=${myOffer.offerPrice}`)}
+        className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all">
+        🛒 Proceed to Checkout — Rs. {Number(myOffer.offerPrice).toLocaleString()}
+      </button>
+    )}
+
+    {myOffer?.status === 'rejected' && !showOfferForm && (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+        <p className="text-red-600 text-sm font-medium mb-2">❌ Your offer was declined</p>
+        <button
+          onClick={() => { setMyOffer(null); setShowOfferForm(true); }}
+          className="text-green-700 font-bold text-sm underline">
+          Try a new offer
+        </button>
+      </div>
+    )}
+  </>
+)}                 
 
                     {/* Wishlist */}
                     <button

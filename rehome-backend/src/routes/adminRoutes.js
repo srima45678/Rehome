@@ -9,7 +9,8 @@ const {
   toggleUserStatus,
   getAnalytics,
   getFlaggedProducts,
-  resolveFlag
+  resolveFlag,
+  getAllOffers
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -28,5 +29,6 @@ router.delete('/products/:id', deleteProductAdmin);
 router.get('/analytics', getAnalytics);
 router.get('/flagged', getFlaggedProducts);
 router.put('/flagged/:id/resolve', resolveFlag);
+router.get('/offers', getAllOffers);
 
 module.exports = router;

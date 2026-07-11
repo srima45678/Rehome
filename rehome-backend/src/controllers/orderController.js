@@ -2,7 +2,9 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Offer = require('../models/Offer');
 const sendEmail = require('../utils/sendEmail');
+const generateReceiptPDF = require('../utils/generateReceipt');
 
 // ═══════════════════════════════════
 // CREATE ORDER
@@ -15,7 +17,8 @@ const createOrder = async (req, res) => {
       deliveryAddress,
       deliveryCity,
       contactPhone,
-      paymentMethod
+      paymentMethod,
+      offerPrice
     } = req.body;
 
     const product = await Product.findById(productId);
@@ -24,6 +27,29 @@ const createOrder = async (req, res) => {
         success: false,
         message: 'Product not found'
       });
+    }
+    
+    // Determine the real price to charge.
+    // Default: normal listing price.
+    let finalPrice = product.price;
+
+    // If the frontend claims there's an accepted offer, verify it against the database.
+    if (offerPrice) {
+      const acceptedOffer = await Offer.findOne({
+        product: productId,
+        buyer: req.user.id,
+        status: 'accepted',
+        offerPrice: Number(offerPrice) // must match exactly
+      });
+
+      if (!acceptedOffer) {
+        return res.status(400).json({
+          success: false,
+          message: 'No matching accepted offer found for this price'
+        });
+      }
+
+      finalPrice = acceptedOffer.offerPrice;
     }
 
     if (product.status !== 'available') {
@@ -79,7 +105,7 @@ const createOrder = async (req, res) => {
                 <div style="background:white;border:1px solid #E8D5C4;border-radius:10px;padding:15px;margin:20px 0;">
                   <h3 style="color:#8B4513;margin-top:0;">📦 Order Details</h3>
                   <p style="margin:5px 0;color:#555;"><strong>Product:</strong> ${product.title}</p>
-                  <p style="margin:5px 0;color:#555;"><strong>Price:</strong> Rs. ${product.price.toLocaleString()}</p>
+                  <p style="margin:5px 0;color:#555;"><strong>Price:</strong> Rs. ${finalPrice.toLocaleString()}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Buyer:</strong> ${buyer.fullName}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Buyer Phone:</strong> ${contactPhone}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Delivery City:</strong> ${deliveryCity}</p>
@@ -125,7 +151,7 @@ const createOrder = async (req, res) => {
                 <div style="background:white;border:1px solid #E8D5C4;border-radius:10px;padding:15px;margin:20px 0;">
                   <h3 style="color:#8B4513;margin-top:0;">📦 Order Summary</h3>
                   <p style="margin:5px 0;color:#555;"><strong>Product:</strong> ${product.title}</p>
-                  <p style="margin:5px 0;color:#555;"><strong>Price:</strong> Rs. ${product.price.toLocaleString()}</p>
+                  <p style="margin:5px 0;color:#555;"><strong>Price:</strong> Rs. ${finalPrice.toLocaleString()}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Seller:</strong> ${seller.fullName}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Deliver to:</strong> ${deliveryAddress}, ${deliveryCity}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Payment:</strong> ${paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online'}</p>
@@ -253,6 +279,17 @@ const updateOrderStatus = async (req, res) => {
       };
 
       const statusInfo = statusMessages[status];
+
+      // Generate a PDF receipt only when the order is delivered
+      let emailAttachments = [];
+      if (status === 'delivered') {
+        const pdfBuffer = await generateReceiptPDF(order);
+        emailAttachments = [{
+          filename: `ReHome-Receipt-${order._id}.pdf`,
+          content: pdfBuffer
+        }];
+      }
+
       if (statusInfo && order.buyer?.email) {
         await sendEmail({
           to: order.buyer.email,
@@ -272,6 +309,12 @@ const updateOrderStatus = async (req, res) => {
                   <p style="margin:5px 0;color:#555;"><strong>Status:</strong> ${status.toUpperCase()}</p>
                   <p style="margin:5px 0;color:#555;"><strong>Seller:</strong> ${order.seller.fullName}</p>
                 </div>
+                ${status === 'delivered' ? `
+                <div style="background:#D4EDDA;border:1px solid #C3E6CB;border-radius:8px;padding:12px;margin:15px 0;">
+                  <p style="color:#155724;margin:0;font-size:14px;">
+                    🧾 Your receipt is attached to this email as a PDF.
+                  </p>
+                </div>` : ''}
                 <p style="color:#888;font-size:13px;">
                   Track your order anytime from your ReHome dashboard.
                 </p>
@@ -281,7 +324,8 @@ const updateOrderStatus = async (req, res) => {
                 </p>
               </div>
             </div>
-          `
+          `,
+          attachments: emailAttachments
         });
       }
     } catch (emailError) {
@@ -373,10 +417,49 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+// ═══════════════════════════════════
+// DOWNLOAD RECEIPT (buyer or seller)
+// GET /api/orders/:id/receipt
+// ═══════════════════════════════════
+const downloadReceipt = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('product', 'title price')
+      .populate('buyer', 'fullName email')
+      .populate('seller', 'fullName email');
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Only the buyer or seller of THIS order can download it
+    if (
+      order.buyer._id.toString() !== req.user.id &&
+      order.seller._id.toString() !== req.user.id
+    ) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    const pdfBuffer = await generateReceiptPDF(order);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=ReHome-Receipt-${order._id}.pdf`,
+      'Content-Length': pdfBuffer.length
+    });
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('Download receipt error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createOrder,
   getMyOrders,
   getSellerOrders,
   updateOrderStatus,
-  cancelOrder
+  cancelOrder,
+  downloadReceipt
 };
