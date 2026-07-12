@@ -13,6 +13,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const userRoutes = require('./routes/userRoutes');
 const offerRoutes = require('./routes/offerRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 const { saveMessage } = require('./controllers/chatController');
 
 
@@ -40,6 +41,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/offers', offerRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 app.get('/api/test', (req, res) => {
   res.json({ success: true, message: 'ReHome Backend is running! 🚀' });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import API from '../../utils/api';
 
@@ -7,6 +7,7 @@ function SellerDashboard() {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all'); // all | available | reserved | sold
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalViews: 0,
@@ -19,40 +20,13 @@ function SellerDashboard() {
     pendingOffers: 0
   });
 
+  const listingsRef = useRef(null);
+
   useEffect(() => {
     fetchDashboardData();
     // eslint-disable-next-line
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      // Fetch products and orders simultaneously
-      const [productsRes, ordersRes] = await Promise.all([
-        API.get('/products/seller/my-products'),
-        API.get('/orders/seller-orders')
-      ]);
-
-      const myProducts = productsRes.data.products;
-      const myOrders = ordersRes.data.orders;
-
-      setProducts(myProducts);
-      setOrders(myOrders);
-
-      // Calculate all stats dynamically
-      const deliveredOrders = myOrders.filter(o => o.status === 'delivered');
-      const totalEarnings = deliveredOrders.reduce((sum, o) => sum + o.price, 0);
-
-      setStats({
-        totalProducts: myProducts.length,
-        totalViews: myProducts.reduce((sum, p) => sum + p.views, 0),
-        available: myProducts.filter(p => p.status === 'available').length,
-        sold: myProducts.filter(p => p.status === 'sold').length,
-        reserved: myProducts.filter(p => p.status === 'reserved').length,
-        totalEarnings,
-        pendingOrders: myOrders.filter(o => o.status === 'pending').length,
-        totalOrders: myOrders.length
-      });
-      
   const fetchDashboardData = async () => {
     try {
       // Fetch products, orders, and offers simultaneously
@@ -90,12 +64,6 @@ function SellerDashboard() {
       setLoading(false);
     }
   };
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (productId) => {
     if (!window.confirm('Delete this listing?')) return;
@@ -115,6 +83,12 @@ function SellerDashboard() {
     } catch (error) {
       alert('Failed to update order');
     }
+  };
+
+  // Scroll to the "My Listings" section and apply a status filter
+  const goToListings = (filter) => {
+    setStatusFilter(filter);
+    listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const nextStatus = {
@@ -148,6 +122,11 @@ function SellerDashboard() {
     sofa: '🛋️', chair: '🪑', table: '🪵', bed: '🛏️',
     wardrobe: '🚪', shelf: '📚', desk: '🖥️', other: '📦'
   };
+
+  // Products filtered by the selected status
+  const filteredProducts = statusFilter === 'all'
+    ? products
+    : products.filter(p => p.status === statusFilter);
 
   if (!user) {
     return (
@@ -226,21 +205,26 @@ function SellerDashboard() {
             {/* ── STATS CARDS ── */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+              <button
+                onClick={() => goToListings('all')}
+                className="bg-white rounded-2xl p-5 shadow-sm text-center hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
                 <p className="text-3xl font-bold text-primary">
                   {stats.totalProducts}
                 </p>
                 <p className="text-gray-500 mt-1 text-sm">Total Listings</p>
-              </div>
+              </button>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+              <button
+                onClick={() => goToListings('all')}
+                className="bg-white rounded-2xl p-5 shadow-sm text-center hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
                 <p className="text-3xl font-bold text-blue-600">
                   {stats.totalViews}
                 </p>
                 <p className="text-gray-500 mt-1 text-sm">Total Views</p>
-              </div>
+              </button>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+              <Link to="/seller/orders"
+                className="bg-white rounded-2xl p-5 shadow-sm text-center hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer block">
                 <p className="text-3xl font-bold text-orange-600">
                   {stats.totalOrders}
                 </p>
@@ -250,31 +234,41 @@ function SellerDashboard() {
                     {stats.pendingOrders} pending!
                   </p>
                 )}
-              </div>
+              </Link>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm text-center">
+              <Link to="/seller/orders"
+                className="bg-white rounded-2xl p-5 shadow-sm text-center hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer block">
                 <p className="text-3xl font-bold text-green-600">
                   Rs. {stats.totalEarnings.toLocaleString()}
                 </p>
                 <p className="text-gray-500 mt-1 text-sm">Total Earnings</p>
-              </div>
+              </Link>
 
             </div>
 
             {/* ── PRODUCT STATUS BREAKDOWN ── */}
             <div className="grid grid-cols-3 gap-3 mb-8">
-              <div className="bg-white rounded-xl p-4 shadow-sm text-center border-l-4 border-green-500">
+              <button
+                onClick={() => goToListings('available')}
+                className={`bg-white rounded-xl p-4 shadow-sm text-center border-l-4 transition-all hover:shadow-md
+                  ${statusFilter === 'available' ? 'border-green-500 ring-2 ring-green-200' : 'border-green-500'}`}>
                 <p className="text-2xl font-bold text-green-600">{stats.available}</p>
                 <p className="text-gray-500 text-sm mt-1">🟢 Available</p>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm text-center border-l-4 border-yellow-500">
+              </button>
+              <button
+                onClick={() => goToListings('reserved')}
+                className={`bg-white rounded-xl p-4 shadow-sm text-center border-l-4 transition-all hover:shadow-md
+                  ${statusFilter === 'reserved' ? 'border-yellow-500 ring-2 ring-yellow-200' : 'border-yellow-500'}`}>
                 <p className="text-2xl font-bold text-yellow-600">{stats.reserved}</p>
                 <p className="text-gray-500 text-sm mt-1">🟡 Reserved</p>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm text-center border-l-4 border-orange-500">
+              </button>
+              <button
+                onClick={() => goToListings('sold')}
+                className={`bg-white rounded-xl p-4 shadow-sm text-center border-l-4 transition-all hover:shadow-md
+                  ${statusFilter === 'sold' ? 'border-orange-500 ring-2 ring-orange-200' : 'border-orange-500'}`}>
                 <p className="text-2xl font-bold text-orange-600">{stats.sold}</p>
                 <p className="text-gray-500 text-sm mt-1">🔴 Sold</p>
-              </div>
+              </button>
             </div>
 
             {/* ── PENDING ORDERS (quick action) ── */}
@@ -327,34 +321,52 @@ function SellerDashboard() {
             )}
 
             {/* ── MY LISTINGS ── */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-              <div className="flex items-center justify-between mb-5">
+            <div ref={listingsRef} className="bg-white rounded-2xl shadow-sm p-6 mb-6 scroll-mt-6">
+              <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                 <h2 className="text-xl font-bold text-gray-800">
                   📦 My Listings
+                  {statusFilter !== 'all' && (
+                    <span className="ml-2 text-sm font-normal text-gray-400">
+                      — filtered: {statusFilter}
+                    </span>
+                  )}
                 </h2>
-                <Link to="/sell"
-                  className="text-primary font-semibold hover:underline text-sm">
-                  + Add New
-                </Link>
+                <div className="flex items-center gap-3">
+                  {statusFilter !== 'all' && (
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className="text-gray-500 text-sm font-semibold hover:underline">
+                      Clear filter ✕
+                    </button>
+                  )}
+                  <Link to="/sell"
+                    className="text-primary font-semibold hover:underline text-sm">
+                    + Add New
+                  </Link>
+                </div>
               </div>
 
-              {products.length === 0 ? (
+              {filteredProducts.length === 0 ? (
                 <div className="text-center py-10">
                   <p className="text-5xl mb-3">📭</p>
                   <h3 className="text-lg font-bold text-gray-700 mb-2">
-                    No listings yet!
+                    {statusFilter === 'all' ? 'No listings yet!' : `No ${statusFilter} listings`}
                   </h3>
                   <p className="text-gray-500 mb-4 text-sm">
-                    Start selling your furniture today
+                    {statusFilter === 'all'
+                      ? 'Start selling your furniture today'
+                      : 'Try a different filter above'}
                   </p>
-                  <Link to="/sell"
-                    className="bg-primary text-white px-6 py-3 rounded-xl hover:bg-accent transition-colors text-sm">
-                    List Your First Product
-                  </Link>
+                  {statusFilter === 'all' && (
+                    <Link to="/sell"
+                      className="bg-primary text-white px-6 py-3 rounded-xl hover:bg-accent transition-colors text-sm">
+                      List Your First Product
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {products.map(product => (
+                  {filteredProducts.map(product => (
                     <div key={product._id}
                       className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
 

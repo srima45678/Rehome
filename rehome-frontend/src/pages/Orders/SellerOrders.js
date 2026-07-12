@@ -12,6 +12,7 @@ function SellerOrders() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState({}); // keyed by orderId
 
   useEffect(() => {
     if (!user) {
@@ -22,15 +23,31 @@ function SellerOrders() {
   }, []);
 
   const fetchOrders = async () => {
-    try {
-      const response = await API.get('/orders/seller-orders');
-      setOrders(response.data.orders);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await API.get('/orders/seller-orders');
+    setOrders(response.data.orders);
+
+    // For delivered orders, check if the buyer left a review on that product
+    const delivered = response.data.orders.filter(o => o.status === 'delivered' && o.product?._id);
+    delivered.forEach(async (order) => {
+      try {
+        const reviewRes = await API.get(`/reviews/product/${order.product._id}`);
+        const matchingReview = reviewRes.data.reviews?.find(
+          r => r.buyer?._id === order.buyer?._id
+        );
+        if (matchingReview) {
+          setReviews(prev => ({ ...prev, [order._id]: matchingReview }));
+        }
+      } catch (err) {
+        // No reviews found for this product — ignore
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
@@ -190,6 +207,33 @@ function SellerOrders() {
                         ✅ Order completed successfully!
                       </p>
                     </div>
+
+                    {/* Buyer's review, if left */}
+                    {reviews[order._id] ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-semibold text-yellow-800 text-sm">
+                            ⭐ Buyer's Review
+                          </p>
+                          <span className="text-yellow-500 text-sm">
+                            {'★'.repeat(reviews[order._id].rating)}
+                            {'☆'.repeat(5 - reviews[order._id].rating)}
+                          </span>
+                        </div>
+                        {reviews[order._id].comment && (
+                          <p className="text-gray-600 text-sm italic">
+                            "{reviews[order._id].comment}"
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center mb-3">
+                        <p className="text-gray-400 text-sm">
+                          ⏳ Buyer hasn't left a review yet
+                        </p>
+                      </div>
+                    )}
+
                     <button
                       onClick={() => handleDownloadReceipt(order._id)}
                       className="w-full border-2 border-green-300 text-green-700 font-semibold py-2 rounded-xl hover:bg-green-50 transition-colors text-sm">

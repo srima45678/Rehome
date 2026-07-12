@@ -2,6 +2,90 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../../utils/api';
 
+// ── REVIEW FORM COMPONENT ──
+function ReviewForm({ orderId, productTitle, onReviewed }) {
+  const [show, setShow] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [comment, setComment] = useState('');
+  const [reviewed, setReviewed] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    API.get(`/reviews/check/${orderId}`)
+      .then(res => setReviewed(res.data.reviewed))
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, [orderId]);
+
+  if (checking) return null;
+
+  if (reviewed) return (
+    <p className="text-green-600 text-xs font-semibold mt-2">✅ You reviewed this order</p>
+  );
+
+  return (
+    <div className="mt-2">
+      {!show ? (
+        <button
+          onClick={() => setShow(true)}
+          className="text-yellow-600 text-xs font-semibold border border-yellow-300 px-3 py-1 rounded-lg hover:bg-yellow-50">
+          ⭐ Leave a Review
+        </button>
+      ) : (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mt-2">
+          <p className="font-bold text-gray-800 text-sm mb-2">Rate: {productTitle}</p>
+          <div className="flex gap-1 mb-3">
+            {[1,2,3,4,5].map(star => (
+              <button
+                key={star}
+                onMouseEnter={() => setHovered(star)}
+                onMouseLeave={() => setHovered(0)}
+                onClick={() => setRating(star)}
+                className={`text-2xl transition-colors ${
+                  star <= (hovered || rating) ? 'text-yellow-400' : 'text-gray-300'
+                }`}>
+                ★
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Share your experience..."
+            className="w-full border border-yellow-200 rounded-lg px-3 py-2 text-sm mb-3 bg-white resize-none"
+            rows={3}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShow(false)}
+              className="flex-1 border border-gray-300 text-gray-600 py-2 rounded-lg text-sm">
+              Cancel
+            </button>
+            <button
+              onClick={async () => {
+                if (!rating) return alert('Please select a star rating');
+                if (!comment.trim()) return alert('Please write a review');
+                try {
+                  await API.post('/reviews', { orderId, rating, comment });
+                  setReviewed(true);
+                  setShow(false);
+                  onReviewed();
+                  alert('✅ Review submitted!');
+                } catch (err) {
+                  alert(err.response?.data?.message || 'Failed to submit review');
+                }
+              }}
+              className="flex-1 bg-yellow-500 text-white font-bold py-2 rounded-lg text-sm hover:bg-yellow-600">
+              Submit Review
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MyOrders() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -40,7 +124,7 @@ function MyOrders() {
       alert(error.response?.data?.message || 'Failed to cancel order');
     }
   };
-  
+
   const handleDownloadReceipt = async (orderId) => {
     try {
       const res = await API.get(`/orders/${orderId}/receipt`, {
@@ -59,7 +143,6 @@ function MyOrders() {
     }
   };
 
-  // Order tracking steps
   const trackingSteps = ['pending', 'confirmed', 'shipped', 'delivered'];
 
   const statusInfo = {
@@ -75,7 +158,6 @@ function MyOrders() {
     wardrobe: '🚪', shelf: '📚', desk: '🖥️', other: '📦'
   };
 
-  // Filter orders by status
   const filteredOrders = filter === 'all'
     ? orders
     : orders.filter(o => o.status === filter);
@@ -87,12 +169,8 @@ function MyOrders() {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">
-              📦 My Orders
-            </h1>
-            <p className="text-gray-500 mt-1">
-              Track and manage your purchases
-            </p>
+            <h1 className="text-3xl font-bold text-gray-800">📦 My Orders</h1>
+            <p className="text-gray-500 mt-1">Track and manage your purchases</p>
           </div>
           <Link to="/buyer/dashboard"
             className="border-2 border-gray-200 text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors text-sm">
@@ -155,14 +233,11 @@ function MyOrders() {
         ) : (
           <div className="space-y-5">
             {filteredOrders.map(order => (
-              <div key={order._id}
-                className="bg-white rounded-2xl shadow-sm p-5">
+              <div key={order._id} className="bg-white rounded-2xl shadow-sm p-5">
 
                 {/* Order header */}
                 <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
                   <div className="flex gap-4">
-
-                    {/* Product image */}
                     <div className="w-20 h-20 bg-orange-50 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                       {order.product?.images?.length > 0 ? (
                         <img src={order.product.images[0]}
@@ -174,7 +249,6 @@ function MyOrders() {
                         </span>
                       )}
                     </div>
-
                     <div>
                       <Link
                         to={`/products/${order.product?._id}`}
@@ -191,14 +265,12 @@ function MyOrders() {
                       </p>
                     </div>
                   </div>
-
-                  {/* Status badge */}
                   <span className={`text-sm px-3 py-1.5 rounded-full font-semibold ${statusInfo[order.status]?.color}`}>
                     {statusInfo[order.status]?.label}
                   </span>
                 </div>
 
-                {/* ── TRACKING PROGRESS ── */}
+                {/* Tracking progress */}
                 {order.status !== 'cancelled' && (
                   <div className="mb-5">
                     <div className="flex items-center">
@@ -237,9 +309,7 @@ function MyOrders() {
                 {/* Cancelled banner */}
                 {order.status === 'cancelled' && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-center">
-                    <p className="text-red-700 font-semibold text-sm">
-                      ❌ This order was cancelled
-                    </p>
+                    <p className="text-red-700 font-semibold text-sm">❌ This order was cancelled</p>
                   </div>
                 )}
 
@@ -252,11 +322,18 @@ function MyOrders() {
                   </div>
                 )}
 
+                {/* ── REVIEW FORM — only for delivered orders ── */}
+                {order.status === 'delivered' && (
+                  <ReviewForm
+                    orderId={order._id}
+                    productTitle={order.product?.title}
+                    onReviewed={fetchOrders}
+                  />
+                )}
+
                 {/* Delivery details */}
-                <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1.5 mb-4">
-                  <p className="font-semibold text-gray-700 mb-2">
-                    📋 Order Details
-                  </p>
+                <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1.5 mb-4 mt-4">
+                  <p className="font-semibold text-gray-700 mb-2">📋 Order Details</p>
                   <p className="text-gray-600">
                     📍 <span className="font-medium">Deliver to:</span>{' '}
                     {order.deliveryAddress}, {order.deliveryCity}
@@ -267,9 +344,7 @@ function MyOrders() {
                   </p>
                   <p className="text-gray-600">
                     💵 <span className="font-medium">Payment:</span>{' '}
-                    {order.paymentMethod === 'cash_on_delivery'
-                      ? 'Cash on Delivery'
-                      : 'Online'}
+                    {order.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online'}
                     {' '}•{' '}
                     <span className={order.paymentStatus === 'paid'
                       ? 'text-green-600 font-semibold'
@@ -294,7 +369,6 @@ function MyOrders() {
                     👁️ View Product
                   </Link>
 
-                  {/* Chat with seller */}
                   {order.status !== 'cancelled' && order.status !== 'delivered' && (
                     <Link
                       to="/chat"
@@ -303,7 +377,6 @@ function MyOrders() {
                     </Link>
                   )}
 
-                  {/* Cancel button */}
                   {(order.status === 'pending' || order.status === 'confirmed') && (
                     <button
                       onClick={() => handleCancel(order._id)}
@@ -312,7 +385,6 @@ function MyOrders() {
                     </button>
                   )}
 
-                  {/* Download receipt — only after delivery */}
                   {order.status === 'delivered' && (
                     <button
                       onClick={() => handleDownloadReceipt(order._id)}

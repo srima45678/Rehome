@@ -8,6 +8,33 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import API from '../../utils/api';
 
+function SellerRating({ sellerId }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    if (!sellerId) return;
+    API.get(`/reviews/seller/${sellerId}`)
+      .then(res => setData(res.data))
+      .catch(() => {});
+  }, [sellerId]);
+
+  if (!data || data.total === 0) return (
+    <p className="text-gray-400 text-xs mt-1">No reviews yet</p>
+  );
+
+  return (
+    <div className="flex items-center gap-1 mt-1">
+      <span className="text-yellow-400 text-sm">
+        {'★'.repeat(Math.round(data.avgRating))}
+        {'☆'.repeat(5 - Math.round(data.avgRating))}
+      </span>
+      <span className="text-gray-500 text-xs">
+        {data.avgRating} ({data.total} reviews)
+      </span>
+    </div>
+  );
+}
+
 function ProductDetail() {
   const { id } = useParams(); // gets product ID from URL
   const navigate = useNavigate();
@@ -31,6 +58,9 @@ function ProductDetail() {
   const [offerMessage, setOfferMessage] = useState('');
   const [offerSubmitted, setOfferSubmitted] = useState(false);
   const [myOffer, setMyOffer] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [totalReviews, setTotalReviews] = useState(0);
 
   // useEffect runs when page loads or ID changes
   useEffect(() => {
@@ -67,6 +97,15 @@ function ProductDetail() {
         } catch (err) {
           console.log('Could not check existing offers');
         }
+        // Fetch reviews
+try {
+  const reviewRes = await API.get(`/reviews/product/${response.data.product._id}`);
+  setReviews(reviewRes.data.reviews);
+  setAvgRating(reviewRes.data.avgRating);
+  setTotalReviews(reviewRes.data.total);
+} catch (err) {
+  console.log('Could not fetch reviews');
+}
       }
       }
 
@@ -306,6 +345,7 @@ function ProductDetail() {
                       <p className="text-gray-500 text-sm">
                         📍 {product.seller?.city || 'Unknown location'}
                       </p>
+                      <SellerRating sellerId={product.seller?._id} />
                     </div>
                   </div>
                 ) : (
@@ -670,7 +710,58 @@ function ProductDetail() {
             ))}
           </div>
         </div>
+        
+        {/* ── REVIEWS SECTION ── */}
+<div className="mt-8">
+  <div className="flex items-center gap-3 mb-4">
+    <h2 className="text-2xl font-bold text-gray-800">⭐ Reviews</h2>
+    {totalReviews > 0 && (
+      <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 px-3 py-1 rounded-full">
+        <span className="text-yellow-500 font-bold">{avgRating}</span>
+        <span className="text-yellow-400">{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</span>
+        <span className="text-gray-500 text-sm">({totalReviews})</span>
+      </div>
+    )}
+  </div>
 
+  {reviews.length === 0 ? (
+    <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+      <p className="text-4xl mb-2">💬</p>
+      <p className="text-gray-400">No reviews yet for this product</p>
+    </div>
+  ) : (
+    <div className="space-y-4">
+      {reviews.map(review => (
+        <div key={review._id} className="bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                {review.buyer?.fullName?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-bold text-gray-800">{review.buyer?.fullName}</p>
+                <p className="text-gray-400 text-xs">📍 {review.buyer?.city}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {[1,2,3,4,5].map(star => (
+                <span key={star} className={star <= review.rating ? 'text-yellow-400' : 'text-gray-200'}>
+                  ★
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="text-gray-600 mt-3 leading-relaxed">{review.comment}</p>
+          <p className="text-gray-400 text-xs mt-2">
+            {new Date(review.createdAt).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'long', year: 'numeric'
+            })}
+          </p>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         {/* Similar Products placeholder */}
         <div className="mt-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
