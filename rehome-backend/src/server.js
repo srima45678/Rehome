@@ -100,6 +100,16 @@ io.on('connection', (socket) => {
   });
 });
 
+// ── GLOBAL ERROR HANDLER ──
+// Catches errors thrown anywhere in routes/middleware (like Cloudinary/multer)
+// and logs the REAL error instead of the generic Express HTML page
+app.use((err, req, res, next) => {
+  console.error('🔥 Global error handler caught:', err);
+  res.status(500).json({
+    success: false,
+    message: err.message || 'Something went wrong on the server'
+  });
+});
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`✅ ReHome Server running on port ${PORT}`);

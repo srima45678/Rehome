@@ -381,6 +381,27 @@ const flagProduct = async (req, res) => {
   }
 };
 
+
+const getSimilarProducts = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const similar = await Product.find({
+      category: product.category,
+      _id: { $ne: product._id },
+      status: 'available'
+    })
+      .limit(4)
+      .populate('seller', 'fullName city');
+
+    res.json({ success: true, products: similar });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 // Export all functions so routes can use them
 module.exports = {
   createProduct,
@@ -390,5 +411,6 @@ module.exports = {
   updateProduct,
   deleteProduct,
   toggleLike,
-  flagProduct
+  flagProduct,
+  getSimilarProducts
 };

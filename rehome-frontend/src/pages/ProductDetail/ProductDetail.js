@@ -61,10 +61,12 @@ function ProductDetail() {
   const [reviews, setReviews] = useState([]);
   const [avgRating, setAvgRating] = useState(0);
   const [totalReviews, setTotalReviews] = useState(0);
+  const [similarProducts, setSimilarProducts] = useState([]);
 
   // useEffect runs when page loads or ID changes
   useEffect(() => {
     fetchProduct();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchProduct = async () => {
@@ -73,7 +75,8 @@ function ProductDetail() {
 
       // Get product details
       const response = await API.get(`/products/${id}`);
-      setProduct(response.data.product);
+      const fetchedProduct = response.data.product;
+      setProduct(fetchedProduct);
 
       // Check if this product is in user's wishlist
       // Only check if user is logged in
@@ -81,32 +84,40 @@ function ProductDetail() {
         try {
           const wishlistRes = await API.get('/wishlist');
           const isInWishlist = wishlistRes.data.wishlist.some(
-            item => item._id === response.data.product._id
+            item => item._id === fetchedProduct._id
           );
           setIsWishlisted(isInWishlist);
         } catch (err) {
           console.log('Could not check wishlist');
         }
-        if (user) {
+
         try {
           const offersRes = await API.get('/offers/my-offers');
           const matchingOffer = offersRes.data.offers
-            .filter(o => o.product?._id === response.data.product._id)
+            .filter(o => o.product?._id === fetchedProduct._id)
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
           setMyOffer(matchingOffer || null);
         } catch (err) {
           console.log('Could not check existing offers');
         }
-        // Fetch reviews
-try {
-  const reviewRes = await API.get(`/reviews/product/${response.data.product._id}`);
-  setReviews(reviewRes.data.reviews);
-  setAvgRating(reviewRes.data.avgRating);
-  setTotalReviews(reviewRes.data.total);
-} catch (err) {
-  console.log('Could not fetch reviews');
-}
       }
+
+      // Fetch reviews — available to everyone, not just logged-in users
+      try {
+        const reviewRes = await API.get(`/reviews/product/${fetchedProduct._id}`);
+        setReviews(reviewRes.data.reviews);
+        setAvgRating(reviewRes.data.avgRating);
+        setTotalReviews(reviewRes.data.total);
+      } catch (err) {
+        console.log('Could not fetch reviews');
+      }
+
+      // Fetch similar products — available to everyone
+      try {
+        const similarRes = await API.get(`/products/${fetchedProduct._id}/similar`);
+        setSimilarProducts(similarRes.data.products);
+      } catch (err) {
+        console.log('Could not fetch similar products');
       }
 
     } catch (error) {
@@ -580,14 +591,6 @@ try {
       </div>
     )}
 
-    {myOffer?.status === 'accepted' && (
-      <button
-        onClick={() => navigate(`/checkout/${product._id}?offerPrice=${myOffer.offerPrice}`)}
-        className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all">
-        🛒 Proceed to Checkout — Rs. {Number(myOffer.offerPrice).toLocaleString()}
-      </button>
-    )}
-
     {myOffer?.status === 'rejected' && !showOfferForm && (
       <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
         <p className="text-red-600 text-sm font-medium mb-2">❌ Your offer was declined</p>
@@ -762,19 +765,55 @@ try {
     </div>
   )}
 </div>
-        {/* Similar Products placeholder */}
+
+        {/* ── SIMILAR PRODUCTS SECTION ── */}
         <div className="mt-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
             🛋️ Similar Products
           </h2>
-          <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm">
-            <p className="text-4xl mb-2">🔍</p>
-            <p>Similar product recommendations coming soon!</p>
-            <Link to="/products"
-              className="inline-block mt-3 text-primary font-semibold hover:underline">
-              Browse all products →
-            </Link>
-          </div>
+
+          {similarProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {similarProducts.map(p => (
+                <Link
+                  key={p._id}
+                  to={`/products/${p._id}`}
+                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                  {p.images && p.images.length > 0 ? (
+                    <img
+                      src={p.images[0]}
+                      alt={p.title}
+                      className="w-full h-32 object-cover"
+                    />
+                  ) : (
+                    <div className="bg-orange-50 h-32 flex items-center justify-center text-4xl">
+                      {categoryEmoji[p.category] || '📦'}
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <p className="font-semibold text-gray-800 text-sm truncate">
+                      {p.title}
+                    </p>
+                    <p className="text-primary font-bold text-sm mt-1">
+                      Rs. {Number(p.price).toLocaleString()}
+                    </p>
+                    {p.city && (
+                      <p className="text-gray-400 text-xs mt-1">📍 {p.city}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm">
+              <p className="text-4xl mb-2">🔍</p>
+              <p>No similar products found right now</p>
+              <Link to="/products"
+                className="inline-block mt-3 text-primary font-semibold hover:underline">
+                Browse all products →
+              </Link>
+            </div>
+          )}
         </div>
 
       </div>
