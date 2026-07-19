@@ -10,7 +10,7 @@ import axios from 'axios';
 // 'http://localhost:5000/api/auth/login'
 // We just write: '/auth/login'
 const API = axios.create({
-  baseURL: process.env.REACT_APP_APT_URL || 'http://localhost:5000/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json'
   }
